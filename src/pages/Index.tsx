@@ -12,6 +12,14 @@ const Index = () => {
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
 
+  // Восстановление пользователя из localStorage при монтировании
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    if (user) {
+      setIsLoggedIn(true);
+    }
+  }, []);
+
   // Вынесенная функция загрузки лекций
   const fetchLectures = () => {
     if (!isLoggedIn) return;
@@ -58,6 +66,7 @@ const Index = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setSelectedLecture(null);
+    localStorage.removeItem("user");
   };
 
   const handleCreateLecture = async (newLecture: Omit<Lecture, "id">) => {
