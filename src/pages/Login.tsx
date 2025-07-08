@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 
 interface LoginProps {
-  onLogin: (lastName: string, password: string) => void;
+  onLogin: (user: any) => void;
 }
 
 const Login = ({ onLogin }: LoginProps) => {
@@ -35,10 +35,8 @@ const Login = ({ onLogin }: LoginProps) => {
       }
 
       const data = await response.json();
-      // Только если вход успешен:
-      onLogin(formData.lastName, formData.password);
-      // Можно сохранить user в localStorage, если нужно
-      // localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem("user", JSON.stringify(data.user)); // сохраняем пользователя
+      onLogin(data.user); // передаём реальные данные пользователя
     } catch (err) {
       alert("Ошибка сервера");
     }
