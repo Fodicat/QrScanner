@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Calendar, Clock, Users, Trash2, Plus, QrCode, X } from "lucide-react";
 import { Lecture, Student } from "@/types/lecture";
+import { Html5QrcodeScanner } from "html5-qrcode";
+
 
 interface AttendanceViewProps {
   lecture: Lecture;
@@ -65,6 +67,38 @@ const AttendanceView = ({
       }
     }
   };
+
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+
+  useEffect(() => {
+  if (showQrScanner) {
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 250 }
+    };
+
+    const scanner = new Html5QrcodeScanner("qr-scanner", config, false);
+
+    scanner.render(
+      (text: string) => {
+        handleQrScan(text);
+        setShowQrScanner(false);
+        scanner.clear(); // Останавливаем сканирование
+      },
+      (err) => {
+        console.warn("QR error:", err);
+      }
+    );
+
+    scannerRef.current = scanner;
+  }
+
+  return () => {
+    if (scannerRef.current) {
+      scannerRef.current.clear().catch(() => {});
+    }
+  };
+}, [showQrScanner]);
 
   const handleQrError = (error: any) => {
     console.error('QR Scanner Error:', error);
@@ -192,7 +226,12 @@ const AttendanceView = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowQrScanner(false)}
+                  onClick={() => {
+                    setShowQrScanner(false);
+                    if (scannerRef.current) {
+                      scannerRef.current.clear();
+                    }
+                  }}
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -202,15 +241,14 @@ const AttendanceView = ({
                 <p className="text-sm text-gray-600 mb-4">
                   Наведите камеру на QR-код студента
                 </p>
-                <div className="bg-gray-100 h-48 rounded-lg flex items-center justify-center">
-                  <p className="text-gray-500">Компонент камеры будет здесь</p>
-                </div>
+                <div className="rounded-lg overflow-hidden" id="qr-scanner" />
                 <p className="text-xs text-gray-500 mt-2">
                   QR-код должен содержать имя и группу студента
                 </p>
               </div>
             </div>
           )}
+
 
           {showAddForm && (
             <form onSubmit={handleAddStudent} className="mb-6 p-4 border rounded-lg bg-gray-50">
