@@ -3,23 +3,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Calendar, Clock, Users, Trash2, Plus, QrCode, X } from "lucide-react";
-import { Lecture, Student } from "@/types/lecture";
-import { Html5QrcodeScanner } from "html5-qrcode";
-
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Users,
+  Trash2,
+  Plus,
+  QrCode,
+  X,
+} from "lucide-react";
+import { Lecture } from "@/types/lecture";
+import { Html5Qrcode, Html5QrcodeCameraScanConfig } from "html5-qrcode";
 
 interface AttendanceViewProps {
   lecture: Lecture;
   onBack: () => void;
   onRemoveStudent: (lectureId: string, studentId: string) => void;
   onStudentAdded?: () => void;
-  onLectureUpdated?: (updatedLecture: Lecture) => void; // <== добавлено
+  onLectureUpdated?: (updatedLecture: Lecture) => void;
 }
-
-const formatDate = (dateStr: string) => {
-  if (!dateStr) return "";
-  return dateStr.substring(0, 10);
-};
 
 const AttendanceView = ({
   lecture,
@@ -30,128 +33,177 @@ const AttendanceView = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: "", group: "" });
+  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
 
-  const presentStudents = lecture?.students?.filter((student) => student.isPresent) || [];
+  const presentStudents = lecture?.students?.filter((s) => s.isPresent) || [];
   const presentCount = presentStudents.length;
   const totalCount = lecture?.students?.length || 0;
 
   const getAttendanceDisplay = () => {
-    if (lecture.showTotal) {
-      return `Присутствует: ${presentCount}/${totalCount}`;
-    }
-    return `Присутствует: ${presentCount}`;
+    return lecture.showTotal
+      ? `Присутствует: ${presentCount}/${totalCount}`
+      : `Присутствует: ${presentCount}`;
   };
 
-  const handleQrScan = (data: string | null) => {
-  if (data) {
-    try {
-      const studentData = JSON.parse(data);
-      console.log("QR Data:", studentData);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerId = "qr-scanner";
+  const [scanCooldown, setScanCooldown] = useState(false);
+  const cooldownTime = 2000; // время блокировки в миллисекундах
 
-      if (studentData.name && studentData.studentId) {
-        setNewStudent({
-          name: studentData.name,
-          group: studentData.studentId  // если studentId используется как группа
-        });
-        setShowQrScanner(false);
-        setShowAddForm(true);
-      } else {
-        alert("Некорректные данные в QR-коде");
-      }
-    } catch (error) {
-      setNewStudent({
-        name: data,
-        group: ""
-      });
-      setShowQrScanner(false);
-      setShowAddForm(true);
-    }
-  }
-};
+  const lastScannedCodeRef = useRef<string | null>(null);
+  const scanCooldownRef = useRef(false);
 
+ const handleQrScan = async (data: string | null) => {
+  if (!data) return;
+  if (scanCooldownRef.current) return;
+  if (data === lastScannedCodeRef.current) return;
 
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  scanCooldownRef.current = true;
+  lastScannedCodeRef.current = data;
 
-  useEffect(() => {
-  if (showQrScanner) {
-    const config = {
-      fps: 10,
-        // квадратная область 250x250
-    };
+  setScanCooldown(true); // ставим блокировку
+  setLastScannedCode(data);
 
-    const scanner = new Html5QrcodeScanner("qr-scanner", config, false);
-
-    scanner.render(
-      (text: string) => {
-        handleQrScan(text);
-        setShowQrScanner(false);
-        scanner.clear(); // остановка сканера
-      },
-      (err) => {
-        console.warn("QR error:", err);
-      }
-    );
-
-    scannerRef.current = scanner;
-  }
-
-  return () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch(() => {});
-    }
-  };
-}, [showQrScanner]);
-
-  const handleQrError = (error: any) => {
-    console.error('QR Scanner Error:', error);
-  };
-
-  const handleAddStudent = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (newStudent.name.trim() && newStudent.group.trim()) {
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
+  try {
+    const studentData = JSON.parse(data);
+    if (studentData.name && studentData.studentId) {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lectureId: lecture.id,
-          name: newStudent.name.trim(),
-          group: newStudent.group.trim(),
+          name: studentData.name.trim(),
+          group: studentData.studentId.trim(),
           isPresent: true,
         }),
       });
 
-      setNewStudent({ name: "", group: "" });
-      setShowAddForm(false);
       onStudentAdded?.();
 
-      // ⏳ Подождать 1.5 секунды перед обновлением
-      setTimeout(async () => {
-        const updatedRes = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`);
+      try {
+        const updatedRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
+        );
         const updatedLecture = await updatedRes.json();
         onLectureUpdated?.(updatedLecture);
-      }, 1500);
-
-    } catch (err) {
-      console.error("Ошибка при добавлении студента:", err);
+      } catch (err) {
+        console.error("Ошибка обновления после сканирования:", err);
+      }
+    } else {
+      alert("Некорректные данные в QR-коде");
     }
+  } catch {
+    alert("Не удалось прочитать данные из QR-кода");
   }
+
+  // Снимаем блокировку через cooldownTime
+  setTimeout(() => {
+    scanCooldownRef.current = false;
+  }, cooldownTime);
 };
+
+  useEffect(() => {
+    if (showQrScanner) {
+      const scanner = new Html5Qrcode(scannerId);
+      scannerRef.current = scanner;
+
+      Html5Qrcode.getCameras()
+        .then((devices) => {
+          if (devices.length > 0) {
+            const backCamera =
+              devices.find((d) => /back|rear/i.test(d.label)) || devices[0];
+
+            const cameraId = backCamera.id;
+
+            const config: Html5QrcodeCameraScanConfig = {
+              fps: 10,
+              qrbox: { width: 250, height: 250 },
+            };
+
+            scanner
+              .start(
+                cameraId,
+                config,
+                (decodedText) => {
+                  handleQrScan(decodedText);
+                  // НЕ закрываем сканер здесь, оставляем активным
+                },
+                (error) => {
+                  console.warn("QR error:", error);
+                }
+              )
+              .catch((err) => {
+                console.error("Ошибка запуска сканера:", err);
+                alert("Не удалось запустить сканер.");
+              });
+          } else {
+            alert("Нет доступных камер.");
+          }
+        })
+        .catch((err) => {
+          console.error("Ошибка доступа к камере:", err);
+          alert("Ошибка доступа к камере.");
+        });
+    }
+
+    return () => {
+      const scanner = scannerRef.current;
+      if (scanner) {
+        scanner
+          .stop()
+          .then(() => scanner.clear())
+          .catch((e) => {
+            console.warn("scanner.stop() вызван до запуска:", e.message);
+          });
+      }
+      setLastScannedCode(null);
+    };
+  }, [showQrScanner]);
+
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newStudent.name.trim() && newStudent.group.trim()) {
+      try {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lectureId: lecture.id,
+            name: newStudent.name.trim(),
+            group: newStudent.group.trim(),
+            isPresent: true,
+          }),
+        });
+
+        setNewStudent({ name: "", group: "" });
+        setShowAddForm(false);
+        onStudentAdded?.();
+
+        setTimeout(async () => {
+          const updatedRes = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
+          );
+          const updatedLecture = await updatedRes.json();
+          onLectureUpdated?.(updatedLecture);
+        }, 1500);
+      } catch (err) {
+        console.error("Ошибка при добавлении студента:", err);
+      }
+    }
+  };
 
   const handleRemoveStudent = async (studentId: number) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Remove`, {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Remove`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lectureId: lecture.id,
-          studentId: studentId,
-        }),
+        body: JSON.stringify({ lectureId: lecture.id, studentId }),
       });
-      await response.json();
-      // После удаления обновляем лекцию
+
       setTimeout(async () => {
-        const updatedRes = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`);
+        const updatedRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
+        );
         const updatedLecture = await updatedRes.json();
         onLectureUpdated?.(updatedLecture);
       }, 1000);
@@ -161,39 +213,41 @@ const AttendanceView = ({
   };
 
   useEffect(() => {
-  let interval: NodeJS.Timeout | null = null;
+    let interval: NodeJS.Timeout | null = null;
 
-  if (lecture?.id) {
-    interval = setInterval(async () => {
-      try {
-        console.log("Обновляем лекцию с id:", lecture.id);
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`);
-        const updated = await res.json();
-        onLectureUpdated?.(updated);
-      } catch (err) {
-        console.error("Ошибка при обновлении данных лекции:", err);
-      }
-    }, 5000);
-  } else {
-    console.warn("Нет lecture.id, обновление лекции не запускается");
-  }
+    if (lecture?.id) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
+          );
+          const updated = await res.json();
+          onLectureUpdated?.(updated);
+        } catch (err) {
+          console.error("Ошибка обновления лекции:", err);
+        }
+      }, 5000);
+    }
 
-  return () => {
-    if (interval) clearInterval(interval);
-  };
-}, [lecture?.id, onLectureUpdated]);
-
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [lecture?.id, onLectureUpdated]);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack} className="flex items-center gap-2">
+    <div className="space-y-6 px-2 md:px-0">
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <Button
+          variant="outline"
+          onClick={onBack}
+          className="flex items-center gap-2 w-fit"
+        >
           <ArrowLeft className="w-4 h-4" />
           Назад
         </Button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{lecture.title}</h1>
-          <div className="flex items-center gap-6 text-sm text-gray-600 mt-1">
+          <div className="flex flex-wrap gap-4 text-sm text-gray-600 mt-1">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
               <span>{lecture.date}</span>
@@ -212,125 +266,90 @@ const AttendanceView = ({
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-col sm:flex-row justify-between gap-2 sm:items-center">
             <span>Присутствующие студенты</span>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-normal text-gray-600">
-                {lecture.showTotal ? `${presentCount} из ${totalCount} студентов` : `${presentCount} студентов`}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowQrScanner(true)}
-                  className="flex items-center gap-2"
-                >
-                  <QrCode className="w-4 h-4" />
-                  QR
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAddForm(!showAddForm)}
-                  className="flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Добавить
-                </Button>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowQrScanner(true)}
+                className="flex items-center gap-2"
+              >
+                <QrCode className="w-4 h-4" />
+                QR
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Добавить
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {showQrScanner && (
-            <div className="mb-6 p-4 border rounded-lg bg-gray-50">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium">Сканирование QR-кода</h3>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowQrScanner(false);
-                    if (scannerRef.current) {
-                      scannerRef.current.clear();
-                    }
-                  }}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="bg-white rounded-lg p-4 text-center">
-                <QrCode className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <p className="text-sm text-gray-600 mb-4">
-                  Наведите камеру на QR-код студента
-                </p>
-                <div className="rounded-lg overflow-hidden" id="qr-scanner" />
-                <p className="text-xs text-gray-500 mt-2">
-                  QR-код должен содержать имя и группу студента
-                </p>
-              </div>
+            <div className="p-4 border rounded-lg bg-gray-50 relative max-w-md mx-auto">
+              <div
+                id={scannerId}
+                style={{ width: "100%", height: "300px" }}
+                className="mb-4"
+              />
+              <Button
+                variant="ghost"
+                className="absolute top-2 right-2"
+                onClick={() => setShowQrScanner(false)}
+              >
+                <X />
+              </Button>
             </div>
           )}
 
-
           {showAddForm && (
-            <form onSubmit={handleAddStudent} className="mb-6 p-4 border rounded-lg bg-gray-50">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="studentName">Имя студента</Label>
-                  <Input
-                    id="studentName"
-                    value={newStudent.name}
-                    onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
-                    placeholder="Введите имя и фамилию"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="studentGroup">Группа</Label>
-                  <Input
-                    id="studentGroup"
-                    value={newStudent.group}
-                    onChange={(e) => setNewStudent({ ...newStudent, group: e.target.value })}
-                    placeholder="Введите группу"
-                    required
-                  />
-                </div>
+            <form onSubmit={handleAddStudent} className="space-y-2 max-w-md mx-auto">
+              <div>
+                <Label htmlFor="name">Имя</Label>
+                <Input
+                  id="name"
+                  value={newStudent.name}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, name: e.target.value })
+                  }
+                  required
+                />
               </div>
-              <div className="flex items-center gap-2 mt-4">
-                <Button type="submit" size="sm">
-                  Добавить студента
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setNewStudent({ name: "", group: "" });
-                  }}
-                >
-                  Отмена
-                </Button>
+              <div>
+                <Label htmlFor="group">Группа</Label>
+                <Input
+                  id="group"
+                  value={newStudent.group}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, group: e.target.value })
+                  }
+                  required
+                />
               </div>
+              <Button type="submit" className="mt-2">
+                Добавить
+              </Button>
             </form>
           )}
 
           {presentStudents.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Нет присутствующих студентов</p>
-            </div>
+            <p>Нет присутствующих студентов</p>
           ) : (
-            <div className="space-y-3">
+            <ul className="space-y-2 max-w-md mx-auto">
               {presentStudents.map((student) => (
-                <div
+                <li
                   key={student.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="flex items-center justify-between p-2 border rounded"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{student.name}</p>
-                    <p className="text-sm text-gray-600">Группа: {student.group}</p>
+                  <div>
+                    <div className="font-medium">{student.name}</div>
+                    <div className="text-sm text-gray-600">{student.group}</div>
                   </div>
                   <Button
                     variant="outline"
@@ -340,9 +359,9 @@ const AttendanceView = ({
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </CardContent>
       </Card>
