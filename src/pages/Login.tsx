@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn } from "lucide-react";
 
 interface LoginProps {
-  onLogin: (user: any) => void;
+  onLogin: (lastName: string, password: string) => void;
 }
 
 const Login = ({ onLogin }: LoginProps) => {
@@ -16,31 +16,32 @@ const Login = ({ onLogin }: LoginProps) => {
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lastName: formData.lastName,
-          password: formData.password,
-        }),
-      });
+  e.preventDefault();
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/users/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lastName: formData.lastName,
+        password: formData.password,
+      }),
+    });
 
-      if (!response.ok) {
-        // Сервер вернул ошибку (неверный логин/пароль)
-        const errorData = await response.json();
-        alert(errorData.error || "Ошибка входа");
-        return;
-      }
-
-      const data = await response.json();
-      localStorage.setItem("user", JSON.stringify(data.user)); // сохраняем пользователя
-      onLogin(data.user); // передаём реальные данные пользователя
-    } catch (err) {
-      alert("Ошибка сервера");
+    if (!response.ok) {
+      const errorData = await response.json();
+      alert(errorData.error || "Ошибка входа");
+      return;
     }
-  };
+
+    const data = await response.json();
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    // Передаем lastName и password, а не user объект
+    onLogin(formData.lastName, formData.password);
+  } catch (err) {
+    alert("Ошибка сервера");
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">

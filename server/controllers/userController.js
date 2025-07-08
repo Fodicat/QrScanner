@@ -12,34 +12,29 @@ export const getAllUsers = async (req, res) => {
 
 export const login = async (req, res) => {
   const { lastName, password } = req.body;
-
-  console.log("Попытка входа:", { lastName, password }); // ⚠️ В бою не логируй пароль!
+  console.log("Попытка входа:", { lastName, password: password ? '***' : undefined });
 
   try {
-    const [rows] = await db.execute(
-      "SELECT * FROM teachers WHERE lastName = ?",
-      [lastName]
-    );
-
-    console.log("Результаты запроса:", rows);
+    const [rows] = await db.execute('SELECT * FROM teachers WHERE lastName = ?', [lastName]);
+    console.log("Результат запроса в БД:", rows);
 
     if (rows.length === 0) {
       console.log("Пользователь не найден");
-      return res.status(404).json({ error: "Пользователь не найден" });
+      return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
     const user = rows[0];
 
     if (user.password !== password) {
       console.log("Неверный пароль");
-      return res.status(401).json({ error: "Неверный пароль" });
+      return res.status(401).json({ error: 'Неверный пароль' });
     }
 
-    console.log("Успешный вход:", user);
-    res.json({ message: "Успешный вход", user });
+    console.log("Пользователь успешно вошел:", user.lastName);
+    res.json({ message: 'Успешный вход', user });
   } catch (err) {
-    console.error("Ошибка при логине:", err);
-    res.status(500).json({ error: "Ошибка сервера" });
+    console.error("Ошибка сервера:", err);
+    res.status(500).json({ error: 'Ошибка сервера' });
   }
 };
 
