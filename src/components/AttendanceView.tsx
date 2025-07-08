@@ -10,7 +10,6 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 interface AttendanceViewProps {
   lecture: Lecture;
   onBack: () => void;
-  onRemoveStudent: (lectureId: string, studentId: string) => void;
   onStudentAdded?: () => void;
   onLectureUpdated?: (updatedLecture: Lecture) => void;
 }
@@ -115,9 +114,31 @@ const AttendanceView = ({
     } catch (err) {
       console.error("Ошибка при добавлении студента:", err);
     }
+  }
+};
+
+  const handleRemoveStudent = async (studentId: number) => {
+    try {
+      const response = await fetch("http://localhost:3000/api/lectures/student/Remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lectureId: lecture.id,
+          studentId: studentId,
+        }),
+      });
+      await response.json();
+      // После удаления обновляем лекцию
+      setTimeout(async () => {
+        const updatedRes = await fetch(`http://localhost:3000/api/lectures/${lecture.id}`);
+        const updatedLecture = await updatedRes.json();
+        onLectureUpdated?.(updatedLecture);
+      }, 1000);
+    } catch (err) {
+      console.error("Ошибка при удалении студента:", err);
+    }
   };
 
-  // ⏳ Обновление лекции раз в 5 секунд
   useEffect(() => {
     if (!lecture?.id) return;
 
@@ -269,6 +290,8 @@ const AttendanceView = ({
                     size="sm"
                     onClick={() => onRemoveStudent(lecture.id, student.id)}
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => handleRemoveStudent(Number(student.id))}
+                    className="ml-3 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
