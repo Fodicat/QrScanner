@@ -32,17 +32,18 @@ const Index = () => {
   };
 
   const refreshLecture = async (lectureId: string) => {
-    try {
-      const res = await fetch('http://localhost:3000/api/lectures/${lectureId}');
-      const updatedLecture: Lecture = await res.json();
-      setLectures((prev) =>
-        prev.map((lec) => (lec.id === updatedLecture.id ? updatedLecture : lec))
-      );
-      setSelectedLecture(updatedLecture);
-    } catch (err) {
-      console.error("Ошибка при обновлении лекции:", err);
-    }
-  };
+  try {
+    const res = await fetch(`http://localhost:3000/api/lectures/${lectureId}`);
+    const updatedLecture: Lecture = await res.json();
+    setLectures((prev) =>
+      prev.map((lec) => (lec.id === updatedLecture.id ? updatedLecture : lec))
+    );
+    setSelectedLecture(updatedLecture);
+  } catch (err) {
+    console.error("Ошибка при обновлении лекции:", err);
+  }
+};
+
 
   useEffect(() => {
     fetchLectures();
@@ -179,7 +180,12 @@ const Index = () => {
             lecture={selectedLecture}
             onBack={() => setSelectedLecture(null)}
             onRemoveStudent={handleRemoveStudent}
-            onStudentAdded={fetchLectures}
+            onLectureUpdated={(updated) => {
+              setLectures((prev) =>
+                prev.map((l) => (l.id === updated.id ? updated : l))
+              );
+              setSelectedLecture(updated);
+            }}
           />
         </div>
       </div>

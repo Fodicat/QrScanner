@@ -41,6 +41,32 @@ export const CreateLectures = async (req, res) => {
     }
 }
 
+export const getLectureById = async (req, res) => {
+  const id = req.params.id;
+  try {
+    const [rows] = await db.execute('SELECT * FROM lectures WHERE id = ?', [id]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Лекция не найдена' });
+    }
+
+    let students = [];
+    try {
+      students = JSON.parse(rows[0].students || '[]');
+    } catch (e) {
+      console.warn(`Ошибка парсинга students для лекции id=${id}`, e);
+    }
+
+    res.json({
+      ...rows[0],
+      students,
+    });
+  } catch (err) {
+    console.error('Ошибка при получении лекции:', err);
+    res.status(500).json({ error: 'Ошибка при получении лекции' });
+  }
+};
+
 export const AddStudents = async (req, res) => {
   const { lectureId, name, group, isPresent } = req.body;
 

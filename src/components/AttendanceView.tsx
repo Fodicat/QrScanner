@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ interface AttendanceViewProps {
   lecture: Lecture;
   onBack: () => void;
   onRemoveStudent: (lectureId: string, studentId: string) => void;
-  onStudentUpdated?: (updated: Lecture) => void;
+  onStudentAdded?: () => void;
+  onLectureUpdated?: (updatedLecture: Lecture) => void; // <== добавлено
 }
 
 const formatDate = (dateStr: string) => {
@@ -22,47 +23,79 @@ const AttendanceView = ({
   lecture,
   onBack,
   onRemoveStudent,
-  onStudentUpdated,
+  onStudentAdded,
+  onLectureUpdated,
 }: AttendanceViewProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newStudent, setNewStudent] = useState({
-    name: "",
-    group: "",
-  });
+  const [newStudent, setNewStudent] = useState({ name: "", group: "" });
 
-  const presentStudents = lecture.students.filter((s) => s.isPresent);
+  const presentStudents = lecture?.students?.filter((student) => student.isPresent) || [];
   const presentCount = presentStudents.length;
-  const totalCount = lecture.students.length;
+  const totalCount = lecture?.students?.length || 0;
 
   const getAttendanceDisplay = () => {
-    return lecture.showTotal
-      ? `Присутствует: ${presentCount}/${totalCount}`
-      : `Присутствует: ${presentCount}`;
+    if (lecture.showTotal) {
+      return `Присутствует: ${presentCount}/${totalCount}`;
+    }
+    return `Присутствует: ${presentCount}`;
   };
 
   const handleAddStudent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newStudent.name.trim() && newStudent.group.trim()) {
-      try {
-        const response = await fetch("http://localhost:3000/api/lectures/student/Add", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lectureId: lecture.id,
-            name: newStudent.name.trim(),
-            group: newStudent.group.trim(),
-            isPresent: true,
-          }),
-        });
-        const updatedLecture: Lecture = await response.json();
-        onStudentUpdated?.(updatedLecture);
-        setNewStudent({ name: "", group: "" });
-        setShowAddForm(false);
-      } catch (err) {
-        console.error("Ошибка при добавлении студента:", err);
-      }
+  e.preventDefault();
+  if (newStudent.name.trim() && newStudent.group.trim()) {
+    try {
+      const response = await fetch("http://localhost:3000/api/lectures/student/Add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lectureId: lecture.id,
+          name: newStudent.name.trim(),
+          group: newStudent.group.trim(),
+          isPresent: true,
+        }),
+      });
+
+      setNewStudent({ name: "", group: "" });
+      setShowAddForm(false);
+      onStudentAdded?.();
+
+      // ⏳ Подождать 1.5 секунды перед обновлением
+      setTimeout(async () => {
+        const updatedRes = await fetch(`http://localhost:3000/api/lectures/${lecture.id}`);
+        const updatedLecture = await updatedRes.json();
+        onLectureUpdated?.(updatedLecture);
+      }, 1500);
+
+    } catch (err) {
+      console.error("Ошибка при добавлении студента:", err);
     }
+  }
+};
+
+
+  useEffect(() => {
+  let interval: NodeJS.Timeout | null = null;
+
+  if (lecture?.id) {
+    interval = setInterval(async () => {
+      try {
+        console.log("Обновляем лекцию с id:", lecture.id);
+        const res = await fetch(`http://localhost:3000/api/lectures/${lecture.id}`);
+        const updated = await res.json();
+        onLectureUpdated?.(updated);
+      } catch (err) {
+        console.error("Ошибка при обновлении данных лекции:", err);
+      }
+    }, 5000);
+  } else {
+    console.warn("Нет lecture.id, обновление лекции не запускается");
+  }
+
+  return () => {
+    if (interval) clearInterval(interval);
   };
+}, [lecture?.id, onLectureUpdated]);
+
 
   return (
     <div className="space-y-6">
@@ -96,9 +129,7 @@ const AttendanceView = ({
             <span>Присутствующие студенты</span>
             <div className="flex items-center gap-3">
               <span className="text-sm font-normal text-gray-600">
-                {lecture.showTotal
-                  ? `${presentCount} из ${totalCount} студентов`
-                  : `${presentCount} студентов`}
+                {lecture.showTotal ? `${presentCount} из ${totalCount} студентов` : `${presentCount} студентов`}
               </span>
               <Button
                 variant="outline"
@@ -121,9 +152,7 @@ const AttendanceView = ({
                   <Input
                     id="studentName"
                     value={newStudent.name}
-                    onChange={(e) =>
-                      setNewStudent({ ...newStudent, name: e.target.value })
-                    }
+                    onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                     placeholder="Введите имя и фамилию"
                     required
                   />
@@ -133,9 +162,7 @@ const AttendanceView = ({
                   <Input
                     id="studentGroup"
                     value={newStudent.group}
-                    onChange={(e) =>
-                      setNewStudent({ ...newStudent, group: e.target.value })
-                    }
+                    onChange={(e) => setNewStudent({ ...newStudent, group: e.target.value })}
                     placeholder="Введите группу"
                     required
                   />
