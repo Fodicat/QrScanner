@@ -22,7 +22,10 @@ export const login = async (req, res) => {
 
     const user = rows[0];
 
+    console.log(user)
+
     if (user.password !== password) {
+      console.log(user.password)
       return res.status(401).json({ error: 'Неверный пароль' });
     }
 

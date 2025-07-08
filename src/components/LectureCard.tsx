@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, Clock } from "lucide-react";
@@ -9,9 +8,19 @@ interface LectureCardProps {
   onSelect: (lecture: Lecture) => void;
 }
 
+// Функция для форматирования даты: берём только YYYY-MM-DD
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  // Если дата в формате ISO с временем, возвращаем только первые 10 символов
+  return dateStr.substring(0, 10);
+};
+
 const LectureCard = ({ lecture, onSelect }: LectureCardProps) => {
-  const presentCount = lecture.students.filter(student => student.isPresent).length;
-  const totalCount = lecture.students.length;
+  // Проверяем, что students есть, если нет — ставим пустой массив, чтобы не ломать фильтр
+  const students = lecture.students || [];
+
+  const presentCount = students.filter(student => student.isPresent).length;
+  const totalCount = students.length;
 
   const getAttendanceDisplay = () => {
     if (lecture.showTotal) {
@@ -35,7 +44,7 @@ const LectureCard = ({ lecture, onSelect }: LectureCardProps) => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              <span>{lecture.date}</span>
+              <span>{formatDate(lecture.date)}</span>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
@@ -52,5 +61,6 @@ const LectureCard = ({ lecture, onSelect }: LectureCardProps) => {
     </Card>
   );
 };
+
 
 export default LectureCard;

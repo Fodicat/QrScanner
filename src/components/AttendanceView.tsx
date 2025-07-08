@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,12 @@ interface AttendanceViewProps {
   onRemoveStudent: (lectureId: string, studentId: string) => void;
   onAddStudent: (lectureId: string, student: Omit<Student, 'id'>) => void;
 }
+
+// Функция для форматирования даты: оставляем только YYYY-MM-DD
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  return dateStr.substring(0, 10);
+};
 
 const AttendanceView = ({ lecture, onBack, onRemoveStudent, onAddStudent }: AttendanceViewProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -57,7 +62,7 @@ const AttendanceView = ({ lecture, onBack, onRemoveStudent, onAddStudent }: Atte
           <div className="flex items-center gap-6 text-sm text-gray-600 mt-1">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              <span>{lecture.date}</span>
+              <span>{formatDate(lecture.date)}</span>  {/* Здесь применяем форматирование */}
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
