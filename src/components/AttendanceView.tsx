@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Calendar, Clock, Users, Trash2, Plus } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Users, Trash2, Plus, QrCode, X } from "lucide-react";
 import { Lecture, Student } from "@/types/lecture";
 
 interface AttendanceViewProps {
@@ -27,6 +27,7 @@ const AttendanceView = ({
   onLectureUpdated,
 }: AttendanceViewProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showQrScanner, setShowQrScanner] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: "", group: "" });
 
   const presentStudents = lecture?.students?.filter((student) => student.isPresent) || [];
@@ -38,6 +39,35 @@ const AttendanceView = ({
       return `Присутствует: ${presentCount}/${totalCount}`;
     }
     return `Присутствует: ${presentCount}`;
+  };
+
+  const handleQrScan = (data: string | null) => {
+    if (data) {
+      try {
+        // Предполагаем, что QR-код содержит JSON с данными студента
+        const studentData = JSON.parse(data);
+        if (studentData.name && studentData.group) {
+          setNewStudent({
+            name: studentData.name,
+            group: studentData.group
+          });
+          setShowQrScanner(false);
+          setShowAddForm(true);
+        }
+      } catch (error) {
+        // Если QR-код не содержит JSON, просто показываем его содержимое в поле имени
+        setNewStudent({
+          name: data,
+          group: ""
+        });
+        setShowQrScanner(false);
+        setShowAddForm(true);
+      }
+    }
+  };
+
+  const handleQrError = (error: any) => {
+    console.error('QR Scanner Error:', error);
   };
 
   const handleAddStudent = async (e: React.FormEvent) => {
@@ -109,7 +139,7 @@ const AttendanceView = ({
           <div className="flex items-center gap-6 text-sm text-gray-600 mt-1">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              <span>{formatDate(lecture.date)}</span>
+              <span>{lecture.date}</span>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
@@ -131,19 +161,57 @@ const AttendanceView = ({
               <span className="text-sm font-normal text-gray-600">
                 {lecture.showTotal ? `${presentCount} из ${totalCount} студентов` : `${presentCount} студентов`}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddForm(!showAddForm)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Добавить
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowQrScanner(true)}
+                  className="flex items-center gap-2"
+                >
+                  <QrCode className="w-4 h-4" />
+                  QR
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddForm(!showAddForm)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Добавить
+                </Button>
+              </div>
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {showQrScanner && (
+            <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium">Сканирование QR-кода</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowQrScanner(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="bg-white rounded-lg p-4 text-center">
+                <QrCode className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                <p className="text-sm text-gray-600 mb-4">
+                  Наведите камеру на QR-код студента
+                </p>
+                <div className="bg-gray-100 h-48 rounded-lg flex items-center justify-center">
+                  <p className="text-gray-500">Компонент камеры будет здесь</p>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  QR-код должен содержать имя и группу студента
+                </p>
+              </div>
+            </div>
+          )}
+
           {showAddForm && (
             <form onSubmit={handleAddStudent} className="mb-6 p-4 border rounded-lg bg-gray-50">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
