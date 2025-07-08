@@ -11,6 +11,7 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 interface AttendanceViewProps {
   lecture: Lecture;
   onBack: () => void;
+  onRemoveStudent: (lectureId: string, studentId: string) => void;
   onStudentAdded?: () => void;
   onLectureUpdated?: (updatedLecture: Lecture) => void; // <== добавлено
 }

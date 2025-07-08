@@ -16,7 +16,7 @@ const Index = () => {
   const fetchLectures = () => {
     if (!isLoggedIn) return;
 
-    fetch("http://localhost:3000/api/lectures")
+    fetch(`${import.meta.env.VITE_API_URL}/api/lectures`)
       .then((res) => res.json())
       .then((data) => {
         console.log("Lectures from server:", data);
@@ -33,7 +33,7 @@ const Index = () => {
 
   const refreshLecture = async (lectureId: string) => {
   try {
-    const res = await fetch(`http://localhost:3000/api/lectures/${lectureId}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/${lectureId}`);
     const updatedLecture: Lecture = await res.json();
     setLectures((prev) =>
       prev.map((lec) => (lec.id === updatedLecture.id ? updatedLecture : lec))
@@ -62,7 +62,7 @@ const Index = () => {
 
   const handleCreateLecture = async (newLecture: Omit<Lecture, "id">) => {
     try {
-      const res = await fetch("http://localhost:3000/api/lectures", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newLecture),
@@ -151,7 +151,7 @@ const Index = () => {
     studentId: number
   ) => {
     try {
-      const response = await fetch("http://localhost:3000/api/lectures/student/Remove", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Remove`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lectureId, studentId }),
