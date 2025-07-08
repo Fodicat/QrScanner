@@ -73,7 +73,7 @@ const AttendanceView = ({
   if (showQrScanner) {
     const config = {
       fps: 10,
-      qrbox: { width: 250, height: 250 }
+      qrbox: 250
     };
 
     const scanner = new Html5QrcodeScanner("qr-scanner", config, false);
