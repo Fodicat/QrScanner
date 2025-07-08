@@ -43,29 +43,32 @@ const AttendanceView = ({
   };
 
   const handleQrScan = (data: string | null) => {
-    if (data) {
-      try {
-        // Предполагаем, что QR-код содержит JSON с данными студента
-        const studentData = JSON.parse(data);
-        if (studentData.name && studentData.group) {
-          setNewStudent({
-            name: studentData.name,
-            group: studentData.group
-          });
-          setShowQrScanner(false);
-          setShowAddForm(true);
-        }
-      } catch (error) {
-        // Если QR-код не содержит JSON, просто показываем его содержимое в поле имени
+  if (data) {
+    try {
+      const studentData = JSON.parse(data);
+      console.log("QR Data:", studentData);
+
+      if (studentData.name && studentData.studentId) {
         setNewStudent({
-          name: data,
-          group: ""
+          name: studentData.name,
+          group: studentData.studentId  // если studentId используется как группа
         });
         setShowQrScanner(false);
         setShowAddForm(true);
+      } else {
+        alert("Некорректные данные в QR-коде");
       }
+    } catch (error) {
+      setNewStudent({
+        name: data,
+        group: ""
+      });
+      setShowQrScanner(false);
+      setShowAddForm(true);
     }
-  };
+  }
+};
+
 
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
 
@@ -73,7 +76,7 @@ const AttendanceView = ({
   if (showQrScanner) {
     const config = {
       fps: 10,
-      qrbox: 250
+        // квадратная область 250x250
     };
 
     const scanner = new Html5QrcodeScanner("qr-scanner", config, false);
@@ -82,7 +85,7 @@ const AttendanceView = ({
       (text: string) => {
         handleQrScan(text);
         setShowQrScanner(false);
-        scanner.clear(); // Останавливаем сканирование
+        scanner.clear(); // остановка сканера
       },
       (err) => {
         console.warn("QR error:", err);
@@ -107,7 +110,7 @@ const AttendanceView = ({
   e.preventDefault();
   if (newStudent.name.trim() && newStudent.group.trim()) {
     try {
-      const response = await fetch("http://localhost:3000/api/lectures/student/Add", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -124,7 +127,7 @@ const AttendanceView = ({
 
       // ⏳ Подождать 1.5 секунды перед обновлением
       setTimeout(async () => {
-        const updatedRes = await fetch(`http://localhost:3000/api/lectures/${lecture.id}`);
+        const updatedRes = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`);
         const updatedLecture = await updatedRes.json();
         onLectureUpdated?.(updatedLecture);
       }, 1500);
@@ -137,7 +140,7 @@ const AttendanceView = ({
 
   const handleRemoveStudent = async (studentId: number) => {
     try {
-      const response = await fetch("http://localhost:3000/api/lectures/student/Remove", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Remove`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -148,7 +151,7 @@ const AttendanceView = ({
       await response.json();
       // После удаления обновляем лекцию
       setTimeout(async () => {
-        const updatedRes = await fetch(`http://localhost:3000/api/lectures/${lecture.id}`);
+        const updatedRes = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`);
         const updatedLecture = await updatedRes.json();
         onLectureUpdated?.(updatedLecture);
       }, 1000);
@@ -164,7 +167,7 @@ const AttendanceView = ({
     interval = setInterval(async () => {
       try {
         console.log("Обновляем лекцию с id:", lecture.id);
-        const res = await fetch(`http://localhost:3000/api/lectures/${lecture.id}`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`);
         const updated = await res.json();
         onLectureUpdated?.(updated);
       } catch (err) {
