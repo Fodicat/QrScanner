@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>QR Attendance — Преподаватель</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Подключаем библиотеку для сканирования QR -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+  <h1>Преподаватель</h1>
+  <div id="reader" style="width: 300px;"></div>
+  <div id="scanned-data">
+    <!-- Здесь отобразятся данные студента -->
+  </div>
+  <button id="mark-attendance" style="display:none;">Отметить присутствие</button>
+  <p id="status"></p>
+
+  <script src="js/teacher.js"></script>
+</body>
+</html>
