@@ -31,6 +31,19 @@ const Index = () => {
       .catch((err) => console.error("Ошибка при загрузке лекций:", err));
   };
 
+  const refreshLecture = async (lectureId: string) => {
+    try {
+      const res = await fetch('http://localhost:3000/api/lectures/${lectureId}');
+      const updatedLecture: Lecture = await res.json();
+      setLectures((prev) =>
+        prev.map((lec) => (lec.id === updatedLecture.id ? updatedLecture : lec))
+      );
+      setSelectedLecture(updatedLecture);
+    } catch (err) {
+      console.error("Ошибка при обновлении лекции:", err);
+    }
+  };
+
   useEffect(() => {
     fetchLectures();
   }, [isLoggedIn]);
@@ -131,6 +144,25 @@ const Index = () => {
     }
   };
 
+  // Удалить студента из лекции
+  const removeStudentFromLecture = async (
+    lectureId: number,
+    studentId: number
+  ) => {
+    try {
+      const response = await fetch("http://localhost:3000/api/lectures/student/Remove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lectureId, studentId }),
+      });
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      console.error("Ошибка при удалении студента:", err);
+      throw err;
+    }
+  };
+
   if (!isLoggedIn) return <Login onLogin={handleLogin} />;
 
   if (selectedLecture) {
@@ -147,7 +179,7 @@ const Index = () => {
             lecture={selectedLecture}
             onBack={() => setSelectedLecture(null)}
             onRemoveStudent={handleRemoveStudent}
-            onAddStudent={handleAddStudent}
+            onStudentAdded={fetchLectures}
           />
         </div>
       </div>

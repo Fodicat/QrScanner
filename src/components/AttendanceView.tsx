@@ -10,43 +10,57 @@ interface AttendanceViewProps {
   lecture: Lecture;
   onBack: () => void;
   onRemoveStudent: (lectureId: string, studentId: string) => void;
-  onAddStudent: (lectureId: string, student: Omit<Student, 'id'>) => void;
+  onStudentUpdated?: (updated: Lecture) => void;
 }
 
-// Функция для форматирования даты: оставляем только YYYY-MM-DD
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "";
   return dateStr.substring(0, 10);
 };
 
-const AttendanceView = ({ lecture, onBack, onRemoveStudent, onAddStudent }: AttendanceViewProps) => {
+const AttendanceView = ({
+  lecture,
+  onBack,
+  onRemoveStudent,
+  onStudentUpdated,
+}: AttendanceViewProps) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newStudent, setNewStudent] = useState({
     name: "",
-    group: ""
+    group: "",
   });
 
-  const presentStudents = lecture.students.filter(student => student.isPresent);
+  const presentStudents = lecture.students.filter((s) => s.isPresent);
   const presentCount = presentStudents.length;
   const totalCount = lecture.students.length;
 
   const getAttendanceDisplay = () => {
-    if (lecture.showTotal) {
-      return `Присутствует: ${presentCount}/${totalCount}`;
-    }
-    return `Присутствует: ${presentCount}`;
+    return lecture.showTotal
+      ? `Присутствует: ${presentCount}/${totalCount}`
+      : `Присутствует: ${presentCount}`;
   };
 
-  const handleAddStudent = (e: React.FormEvent) => {
+  const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newStudent.name.trim() && newStudent.group.trim()) {
-      onAddStudent(lecture.id, {
-        name: newStudent.name.trim(),
-        group: newStudent.group.trim(),
-        isPresent: true
-      });
-      setNewStudent({ name: "", group: "" });
-      setShowAddForm(false);
+      try {
+        const response = await fetch("http://localhost:3000/api/lectures/student/Add", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lectureId: lecture.id,
+            name: newStudent.name.trim(),
+            group: newStudent.group.trim(),
+            isPresent: true,
+          }),
+        });
+        const updatedLecture: Lecture = await response.json();
+        onStudentUpdated?.(updatedLecture);
+        setNewStudent({ name: "", group: "" });
+        setShowAddForm(false);
+      } catch (err) {
+        console.error("Ошибка при добавлении студента:", err);
+      }
     }
   };
 
@@ -62,7 +76,7 @@ const AttendanceView = ({ lecture, onBack, onRemoveStudent, onAddStudent }: Atte
           <div className="flex items-center gap-6 text-sm text-gray-600 mt-1">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              <span>{formatDate(lecture.date)}</span>  {/* Здесь применяем форматирование */}
+              <span>{formatDate(lecture.date)}</span>
             </div>
             <div className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
@@ -82,7 +96,9 @@ const AttendanceView = ({ lecture, onBack, onRemoveStudent, onAddStudent }: Atte
             <span>Присутствующие студенты</span>
             <div className="flex items-center gap-3">
               <span className="text-sm font-normal text-gray-600">
-                {lecture.showTotal ? `${presentCount} из ${totalCount} студентов` : `${presentCount} студентов`}
+                {lecture.showTotal
+                  ? `${presentCount} из ${totalCount} студентов`
+                  : `${presentCount} студентов`}
               </span>
               <Button
                 variant="outline"
@@ -105,7 +121,9 @@ const AttendanceView = ({ lecture, onBack, onRemoveStudent, onAddStudent }: Atte
                   <Input
                     id="studentName"
                     value={newStudent.name}
-                    onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, name: e.target.value })
+                    }
                     placeholder="Введите имя и фамилию"
                     required
                   />
@@ -115,7 +133,9 @@ const AttendanceView = ({ lecture, onBack, onRemoveStudent, onAddStudent }: Atte
                   <Input
                     id="studentGroup"
                     value={newStudent.group}
-                    onChange={(e) => setNewStudent({ ...newStudent, group: e.target.value })}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, group: e.target.value })
+                    }
                     placeholder="Введите группу"
                     required
                   />
