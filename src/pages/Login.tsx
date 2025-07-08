@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +15,33 @@ const Login = ({ onLogin }: LoginProps) => {
     password: ""
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(formData.lastName, formData.password);
+    try {
+      const response = await fetch("http://localhost:3000/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lastName: formData.lastName,
+          password: formData.password,
+        }),
+      });
+
+      if (!response.ok) {
+        // Сервер вернул ошибку (неверный логин/пароль)
+        const errorData = await response.json();
+        alert(errorData.error || "Ошибка входа");
+        return;
+      }
+
+      const data = await response.json();
+      // Только если вход успешен:
+      onLogin(formData.lastName, formData.password);
+      // Можно сохранить user в localStorage, если нужно
+      // localStorage.setItem('user', JSON.stringify(data.user));
+    } catch (err) {
+      alert("Ошибка сервера");
+    }
   };
 
   return (
