@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <title>QR Attendance — Студент</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Подключаем библиотеку для генерации QR -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Подключаем QRious для генерации QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 </head>
 <body>
   <h1>Студент</h1>
@@ -13,12 +13,12 @@
     <label for="name">Ваше имя:</label>
     <input type="text" id="name" placeholder="Введите ваше имя" required>
     <br>
-    <label for="studentId">Ваш ID:</label>
-    <input type="text" id="studentId" placeholder="Введите свой ID" required>
-    <br>
-    <button type="submit">Сгенерировать QR-код</button>
+    <button type="submit">Сгенерировать QR‑код</button>
   </form>
-  <div id="qrcode"></div>
+
+  <!-- Вместо <div> используем <canvas> для QRious -->
+  <canvas id="qrcode" style="margin-top:20px;"></canvas>
+  <div id="timer" style="font-weight:bold; font-size:18px; margin-top:10px;"></div>
 
   <script src="js/student.js"></script>
 </body>
