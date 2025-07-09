@@ -4,32 +4,37 @@ document.getElementById('student-form').addEventListener('submit', function(e) {
   e.preventDefault();
 
   const name = document.getElementById('name').value.trim();
-  if (!name) {
-    alert('Введите ваше имя!');
+  const group = document.getElementById('group').value.trim();
+
+  if (!name || !group) {
+    alert('Пожалуйста, введите имя и группу!');
     return;
   }
 
-  // Генерируем случайный 6‑значный ID
-  const studentId = Math.floor(100000 + Math.random() * 900000).toString();
   const timestamp = new Date().toISOString();
-  const data = { name, studentId, timestamp };
+  const data = {
+    name,
+    group,
+    timestamp
+  };
 
-  // Очистка предыдущего QR и таймера
   const canvas = document.getElementById('qrcode');
   const timerDisplay = document.getElementById('timer');
+
+  // Очистка
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
   timerDisplay.textContent = '';
   clearInterval(countdownInterval);
 
-  // Генерация QR‑кода через QRious (поддерживает кириллицу)
+  // Генерация QR-кода
   const qr = new QRious({
     element: canvas,
     value: JSON.stringify(data),
     size: 256,
-    level: 'H'  // высокий уровень коррекции ошибок
+    level: 'H'
   });
 
-  // Запуск таймера на 3 минуты
+  // Таймер 3 минуты
   let timeLeft = 180;
   function updateTimer() {
     const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
@@ -42,9 +47,7 @@ document.getElementById('student-form').addEventListener('submit', function(e) {
     timeLeft--;
     if (timeLeft <= 0) {
       clearInterval(countdownInterval);
-      // Удаляем QR-код
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
       timerDisplay.textContent = '⛔ Время действия QR‑кода истекло. Сгенерируйте заново.';
     } else {
       updateTimer();
