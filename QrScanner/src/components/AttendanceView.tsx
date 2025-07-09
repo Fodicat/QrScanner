@@ -11,7 +11,6 @@ import {
   Trash2,
   Plus,
   QrCode,
-  X,
 } from "lucide-react";
 import { Lecture } from "@/types/lecture";
 import { Html5Qrcode, Html5QrcodeCameraScanConfig } from "html5-qrcode";
@@ -34,6 +33,8 @@ const AttendanceView = ({
   const [showQrScanner, setShowQrScanner] = useState(false);
   const [newStudent, setNewStudent] = useState({ name: "", group: "" });
   const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
+  const [cameras, setCameras] = useState<any[]>([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   const presentStudents = lecture?.students?.filter((s) => s.isPresent) || [];
   const presentCount = presentStudents.length;
@@ -47,60 +48,55 @@ const AttendanceView = ({
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerId = "qr-scanner";
-  const [scanCooldown, setScanCooldown] = useState(false);
-  const cooldownTime = 2000; // время блокировки в миллисекундах
-
+  const cooldownTime = 2000;
   const lastScannedCodeRef = useRef<string | null>(null);
   const scanCooldownRef = useRef(false);
 
- const handleQrScan = async (data: string | null) => {
-  if (!data) return;
-  if (scanCooldownRef.current) return;
-  if (data === lastScannedCodeRef.current) return;
+  const handleQrScan = async (data: string | null) => {
+    if (!data) return;
+    if (scanCooldownRef.current) return;
+    if (data === lastScannedCodeRef.current) return;
 
-  scanCooldownRef.current = true;
-  lastScannedCodeRef.current = data;
+    scanCooldownRef.current = true;
+    lastScannedCodeRef.current = data;
+    setLastScannedCode(data);
 
-  setScanCooldown(true); // ставим блокировку
-  setLastScannedCode(data);
+    try {
+      const studentData = JSON.parse(data);
+      if (studentData.name && studentData.group) {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lectureId: lecture.id,
+            name: studentData.name.trim(),
+            group: studentData.group.trim(),
+            isPresent: true,
+          }),
+        });
 
-  try {
-    const studentData = JSON.parse(data);
-    if (studentData.name && studentData.studentId) {
-      await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lectureId: lecture.id,
-          name: studentData.name.trim(),
-          group: studentData.studentId.trim(),
-          isPresent: true,
-        }),
-      });
+        onStudentAdded?.();
 
-      onStudentAdded?.();
-
-      try {
-        const updatedRes = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
-        );
-        const updatedLecture = await updatedRes.json();
-        onLectureUpdated?.(updatedLecture);
-      } catch (err) {
-        console.error("Ошибка обновления после сканирования:", err);
+        try {
+          const updatedRes = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
+          );
+          const updatedLecture = await updatedRes.json();
+          onLectureUpdated?.(updatedLecture);
+        } catch (err) {
+          console.error("Ошибка обновления после сканирования:", err);
+        }
+      } else {
+        alert("Некорректные данные в QR-коде");
       }
-    } else {
-      alert("Некорректные данные в QR-коде");
+    } catch (err) {
+      alert("Не удалось прочитать данные из QR-кода: " + err);
     }
-  } catch {
-    alert("Не удалось прочитать данные из QR-кода");
-  }
 
-  // Снимаем блокировку через cooldownTime
-  setTimeout(() => {
-    scanCooldownRef.current = false;
-  }, cooldownTime);
-};
+    setTimeout(() => {
+      scanCooldownRef.current = false;
+    }, cooldownTime);
+  };
 
   useEffect(() => {
     if (showQrScanner) {
@@ -110,11 +106,8 @@ const AttendanceView = ({
       Html5Qrcode.getCameras()
         .then((devices) => {
           if (devices.length > 0) {
-            const backCamera =
-              devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[0];
-
-            const cameraId = backCamera.id;
-
+            setCameras(devices);
+            const selectedCamera = devices[currentCameraIndex] || devices[0];
             const config: Html5QrcodeCameraScanConfig = {
               fps: 10,
               qrbox: { width: 250, height: 250 },
@@ -122,15 +115,10 @@ const AttendanceView = ({
 
             scanner
               .start(
-                cameraId,
+                selectedCamera.id,
                 config,
-                (decodedText) => {
-                  handleQrScan(decodedText);
-                  // НЕ закрываем сканер здесь, оставляем активным
-                },
-                (error) => {
-                  console.warn("QR error:", error);
-                }
+                (decodedText) => handleQrScan(decodedText),
+                (error) => console.warn("QR error:", error)
               )
               .catch((err) => {
                 console.error("Ошибка запуска сканера:", err);
@@ -158,7 +146,7 @@ const AttendanceView = ({
       }
       setLastScannedCode(null);
     };
-  }, [showQrScanner]);
+  }, [showQrScanner, currentCameraIndex]);
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -237,11 +225,7 @@ const AttendanceView = ({
   return (
     <div className="space-y-6 px-2 md:px-0">
       <div className="flex flex-col md:flex-row md:items-center gap-4">
-        <Button
-          variant="outline"
-          onClick={onBack}
-          className="flex items-center gap-2 w-fit"
-        >
+        <Button variant="outline" onClick={onBack} className="flex items-center gap-2 w-fit">
           <ArrowLeft className="w-4 h-4" />
           Назад
         </Button>
@@ -278,6 +262,18 @@ const AttendanceView = ({
                 <QrCode className="w-4 h-4" />
                 QR
               </Button>
+              {showQrScanner && cameras.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setCurrentCameraIndex((prev) => (prev + 1) % cameras.length)
+                  }
+                  className="flex items-center gap-2"
+                >
+                  🔄 Камера
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -308,9 +304,7 @@ const AttendanceView = ({
                 <Input
                   id="name"
                   value={newStudent.name}
-                  onChange={(e) =>
-                    setNewStudent({ ...newStudent, name: e.target.value })
-                  }
+                  onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                   required
                 />
               </div>
@@ -319,9 +313,7 @@ const AttendanceView = ({
                 <Input
                   id="group"
                   value={newStudent.group}
-                  onChange={(e) =>
-                    setNewStudent({ ...newStudent, group: e.target.value })
-                  }
+                  onChange={(e) => setNewStudent({ ...newStudent, group: e.target.value })}
                   required
                 />
               </div>
@@ -336,10 +328,7 @@ const AttendanceView = ({
           ) : (
             <ul className="space-y-2 max-w-md mx-auto">
               {presentStudents.map((student) => (
-                <li
-                  key={student.id}
-                  className="flex items-center justify-between p-2 border rounded"
-                >
+                <li key={student.id} className="flex items-center justify-between p-2 border rounded">
                   <div>
                     <div className="font-medium">{student.name}</div>
                     <div className="text-sm text-gray-600">{student.group}</div>
