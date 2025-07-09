@@ -23,6 +23,6 @@ const httpsOptions = {
 };
 
 // Запускаем HTTPS сервер
-https.createServer(httpsOptions, app).listen(PORT, '192.168.100.174', () => {
-  console.log(`HTTPS сервер запущен на https://192.168.100.174:${PORT}`);
+https.createServer(httpsOptions, app).listen(PORT, '192.168.0.132', () => {
+  console.log(`HTTPS сервер запущен на https://192.168.0.132:${PORT}`);
 });
