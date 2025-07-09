@@ -111,7 +111,7 @@ const AttendanceView = ({
         .then((devices) => {
           if (devices.length > 0) {
             const backCamera =
-              devices.find((d) => /back|rear/i.test(d.label)) || devices[0];
+              devices.find((d) => /back|rear|environment/i.test(d.label)) || devices[0];
 
             const cameraId = backCamera.id;
 
@@ -298,13 +298,6 @@ const AttendanceView = ({
                 style={{ width: "100%", height: "300px" }}
                 className="mb-4"
               />
-              <Button
-                variant="ghost"
-                className="absolute top-2 right-2"
-                onClick={() => setShowQrScanner(false)}
-              >
-                <X />
-              </Button>
             </div>
           )}
 
