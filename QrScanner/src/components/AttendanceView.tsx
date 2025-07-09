@@ -53,50 +53,55 @@ const AttendanceView = ({
   const scanCooldownRef = useRef(false);
 
   const handleQrScan = async (data: string | null) => {
-    if (!data) return;
-    if (scanCooldownRef.current) return;
-    if (data === lastScannedCodeRef.current) return;
+  if (!data) return;
+  if (scanCooldownRef.current) return;
+  if (data === lastScannedCodeRef.current) return;
 
-    scanCooldownRef.current = true;
-    lastScannedCodeRef.current = data;
-    setLastScannedCode(data);
+  scanCooldownRef.current = true;
+  lastScannedCodeRef.current = data;
+  setLastScannedCode(data);
 
-    try {
-      const studentData = JSON.parse(data);
-      if (studentData.name && studentData.group) {
-        await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            lectureId: lecture.id,
-            name: studentData.name.trim(),
-            group: studentData.group.trim(),
-            isPresent: true,
-          }),
-        });
+  try {
+    const studentData = JSON.parse(decodeURIComponent(data));
+    
+    // Поддержка обоих вариантов ключей
+    const name = (studentData.name || studentData.n || "").trim();
+    const group = (studentData.group || studentData.g || "").trim();
 
-        onStudentAdded?.();
+    if (name && group) {
+      await fetch(`${import.meta.env.VITE_API_URL}/api/lectures/student/Add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lectureId: lecture.id,
+          name,
+          group,
+          isPresent: true,
+        }),
+      });
 
-        try {
-          const updatedRes = await fetch(
-            `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
-          );
-          const updatedLecture = await updatedRes.json();
-          onLectureUpdated?.(updatedLecture);
-        } catch (err) {
-          console.error("Ошибка обновления после сканирования:", err);
-        }
-      } else {
-        alert("Некорректные данные в QR-коде");
+      onStudentAdded?.();
+
+      try {
+        const updatedRes = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/lectures/${lecture.id}`
+        );
+        const updatedLecture = await updatedRes.json();
+        onLectureUpdated?.(updatedLecture);
+      } catch (err) {
+        console.error("Ошибка обновления после сканирования:", err);
       }
-    } catch (err) {
-      alert("Не удалось прочитать данные из QR-кода: " + err);
+    } else {
+      alert("Некорректные данные в QR-коде");
     }
+  } catch (err) {
+    alert("Не удалось прочитать данные из QR-кода: " + err);
+  }
 
-    setTimeout(() => {
-      scanCooldownRef.current = false;
-    }, cooldownTime);
-  };
+  setTimeout(() => {
+    scanCooldownRef.current = false;
+  }, cooldownTime);
+};
 
   useEffect(() => {
     if (showQrScanner) {
