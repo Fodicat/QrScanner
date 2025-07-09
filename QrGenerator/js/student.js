@@ -5,52 +5,56 @@ document.getElementById('student-form').addEventListener('submit', function(e) {
 
   const name = document.getElementById('name').value.trim();
   const group = document.getElementById('group').value.trim();
+  const timestamp = new Date().toISOString();
 
   if (!name || !group) {
-    alert('Пожалуйста, введите имя и группу!');
+    alert('Заполните все поля!');
     return;
   }
 
-  const timestamp = new Date().toISOString();
-  const data = {
-    name,
-    group,
-    timestamp
-  };
-
-  const canvas = document.getElementById('qrcode');
-  const timerDisplay = document.getElementById('timer');
-
-  // Очистка
-  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-  timerDisplay.textContent = '';
-  clearInterval(countdownInterval);
-
-  // Генерация QR-кода
-  const qr = new QRious({
-    element: canvas,
-    value: JSON.stringify(data),
-    size: 256,
-    level: 'H'
-  });
-
-  // Таймер 3 минуты
-  let timeLeft = 180;
-  function updateTimer() {
-    const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
-    const s = String(timeLeft % 60).padStart(2, '0');
-    timerDisplay.textContent = `QR‑код активен: ${m}:${s}`;
+  if (name.length > 20 || group.length > 20) {
+    alert('Максимум 20 символов в имени и группе!');
+    return;
   }
 
-  updateTimer();
+  const data = {
+    n: name,
+    g: group,
+    t: timestamp
+  };
+
+  const encoded = encodeURIComponent(JSON.stringify(data));
+
+  document.getElementById("qrcode").innerHTML = "";
+  document.getElementById("timer").textContent = "";
+  clearInterval(countdownInterval);
+
+  new QRCode(document.getElementById("qrcode"), {
+    text: encoded,
+    width: 256,
+    height: 256,
+    correctLevel: QRCode.CorrectLevel.L // наименьшая коррекция — больше места
+  });
+
+  let timeLeft = 180;
+  const timerDisplay = document.getElementById("timer");
+
+  function updateTimerDisplay() {
+    const minutes = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+    const seconds = String(timeLeft % 60).padStart(2, '0');
+    timerDisplay.textContent = `QR-код активен: ${minutes}:${seconds}`;
+  }
+
+  updateTimerDisplay();
+
   countdownInterval = setInterval(() => {
     timeLeft--;
     if (timeLeft <= 0) {
       clearInterval(countdownInterval);
-      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-      timerDisplay.textContent = '⛔ Время действия QR‑кода истекло. Сгенерируйте заново.';
+      document.getElementById("qrcode").innerHTML = "";
+      timerDisplay.textContent = "⛔ Время действия QR-кода истекло.";
     } else {
-      updateTimer();
+      updateTimerDisplay();
     }
   }, 1000);
 });
