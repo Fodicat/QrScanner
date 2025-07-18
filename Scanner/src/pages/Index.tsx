@@ -11,33 +11,44 @@ const Index = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [teacherid, setTeacherid] = useState<number | null>(null);
 
   // Восстановление пользователя из localStorage при монтировании
   useEffect(() => {
-    const user = localStorage.getItem("user");
-    if (user) {
-      setIsLoggedIn(true);
-    }
+  const user = localStorage.getItem("user");
+  if (user) {
+    setIsLoggedIn(true);
+  }
   }, []);
 
+  
+
   // Вынесенная функция загрузки лекций
-  const fetchLectures = () => {
-    if (!isLoggedIn) return;
-
-    fetch(`${import.meta.env.VITE_API_URL}/api/lectures`)
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Lectures from server:", data);
-
-        data.forEach((lecture: Lecture, index: number) => {
-          console.log(`Lecture ${index} id=${lecture.id} students type:`, typeof lecture.students);
-          console.log(`Lecture ${index} students:`, lecture.students);
-        });
-
+  const fetchLectures = (teacherId: number) => {
+  if (!isLoggedIn) return;
+  const user = localStorage.getItem("user");
+  const userObj = JSON.parse(user);
+  fetch(`${import.meta.env.VITE_API_URL}/api/lectures/lec/by-teacher?teacherid=${userObj.id}`)
+  .then(async (res) => {
+    const text = await res.text();
+    try {
+      const data = text ? JSON.parse(text) : [];
+      if (Array.isArray(data)) {
         setLectures(data);
-      })
-      .catch((err) => console.error("Ошибка при загрузке лекций:", err));
-  };
+      } else {
+        console.warn('Ответ не массив, устанавливаем пустой массив');
+        setLectures([]);
+      }
+    } catch (e) {
+      console.error('Ошибка парсинга JSON:', e);
+      setLectures([]);
+    }
+  })
+  .catch((err) => {
+    console.error('Ошибка загрузки:', err);
+    setLectures([]);
+  });
+};
 
   const refreshLecture = async (lectureId: string) => {
   try {
@@ -54,7 +65,7 @@ const Index = () => {
 
 
   useEffect(() => {
-    fetchLectures();
+    fetchLectures(teacherid);
   }, [isLoggedIn]);
 
   const handleLogin = (lastName: string, password: string) => {
@@ -82,7 +93,7 @@ const Index = () => {
       }
 
       setTimeout(() => {
-        fetchLectures();
+        fetchLectures(teacherid);
       }, 300);
 
     } catch (err) {

@@ -12,9 +12,14 @@ interface CreateLectureModalProps {
   onCreateLecture: (lecture: Omit<Lecture, 'id'>) => void;
 }
 
+
+
 const CreateLectureModal = ({ onCreateLecture }: CreateLectureModalProps) => {
   const [open, setOpen] = useState(false);
+  const user = localStorage.getItem("user");
+  const userObj = JSON.parse(user);
   const [formData, setFormData] = useState({
+    teacherid: userObj.id,
     title: "",
     date: "",
     time: "",
@@ -29,7 +34,7 @@ const CreateLectureModal = ({ onCreateLecture }: CreateLectureModalProps) => {
       students: []
     });
     
-    setFormData({ title: "", date: "", time: "", showTotal: false });
+    setFormData({teacherid: userObj.id, title: "", date: "", time: "", showTotal: false });
     setOpen(false);
   };
 

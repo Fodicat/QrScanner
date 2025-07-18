@@ -27,13 +27,43 @@ export const getAllLectures = async (req, res) => {
   }
 };
 
+export const getLecturesByteacherid = async (req, res) => {
+  const { teacherid } = req.query; // <-- получаем из query-параметров
+
+  if (!teacherid) {
+    return res.status(400).json({ error: 'teacherid обязателен' });
+  }
+
+  try {
+    const [rows] = await db.execute('SELECT * FROM lectures WHERE teacherid = ?', [teacherid]);
+
+    const lectures = rows.map(lecture => {
+      let students = [];
+      try {
+        students = JSON.parse(lecture.students);
+      } catch (e) {
+        console.warn(`Ошибка парсинга students для лекции id=${lecture.id}`, e);
+      }
+
+      return {
+        ...lecture,
+        students,
+      };
+    });
+
+    res.json(lectures);
+  } catch (err) {
+    console.error('Ошибка при получении лекций:', err);
+    res.status(500).json({ error: 'Ошибка при получении лекций' });
+  }
+};
 
 export const CreateLectures = async (req, res) => {
-    const { title, date, showTotal, students, time, } = req.body;
+    const {teacherid, title, date, showTotal, students, time, } = req.body;
 
     try{
-        const [rows] = await db.execute('INSERT INTO lectures (id, title, date, time, showTotal, students) VALUES (?, ?, ?, ?, ?, ?)', 
-            [null, title, date, time, showTotal, students]);
+        const [rows] = await db.execute('INSERT INTO lectures (id, teacherid, adminid, title, date, time, showTotal, students) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+            [null, teacherid, 2, title, date, time, showTotal, students]);
         res.json("Лекция создана");
     } catch (err) {
         console.error('Ошибка при создании лекций:', err); // ← логируем ошибку в консоль
